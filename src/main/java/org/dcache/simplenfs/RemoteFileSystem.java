@@ -1,21 +1,46 @@
 package org.dcache.simplenfs;
 
+import com.google.common.primitives.Longs;
+import com.sleepycat.je.utilint.CollectionUtils;
+import com.sleepycat.utilint.StringUtils;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
+import org.cliffc.high_scale_lib.NonBlockingHashMapLong;
+import org.dcache.nfs.status.NoEntException;
 import org.dcache.nfs.v4.NfsIdMapping;
 import org.dcache.nfs.v4.xdr.nfsace4;
 import org.dcache.nfs.vfs.*;
 import org.dcache.nfs.vfs.DirectoryStream;
+import org.dcache.simplenfs.bean.ListFileResp;
 
 import javax.security.auth.Subject;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class RemoteFileSystem implements VirtualFileSystem {
 
-    private AliDriverClient aliDriverClient;
+    private final RemotePath _root;
+    private final NonBlockingHashMapLong<RemotePath> inodeToPath = new NonBlockingHashMapLong<>();
+    private final NonBlockingHashMap<RemotePath, Long> pathToInode = new NonBlockingHashMap<>();
 
-    public RemoteFileSystem() {
+    private final AliDriverClient aliDriverClient;
+
+//    private
+
+    public RemoteFileSystem(RemotePath _root) {
+        this._root = _root;
         aliDriverClient = AliDriverClient.getInstance();
         aliDriverClient.refreshToken();
+        ///////////////////////////
+
+
+//        Map<String, Object> items = map.get("Item");
+
+//        map();
     }
 
 
@@ -151,5 +176,62 @@ public class RemoteFileSystem implements VirtualFileSystem {
     @Override
     public boolean getCasePreserving() {
         return false;
+    }
+
+
+    /////////////////////////
+
+    private Inode toFh(long inodeNumber) {
+        return Inode.forFile(Longs.toByteArray(inodeNumber));
+    }
+
+    private long getInodeNumber(Inode inode) {
+        return Longs.fromByteArray(inode.getFileId());
+    }
+
+    private RemotePath resolveInode(long inodeNumber) throws NoEntException {
+        RemotePath path = inodeToPath.get(inodeNumber);
+        if (path == null) {
+            throw new NoEntException("inode #" + inodeNumber);
+        }
+        return path;
+    }
+
+    private long resolvePath(RemotePath path) throws NoEntException {
+        Long inodeNumber = pathToInode.get(path);
+        if (inodeNumber == null) {
+            throw new NoEntException("path " + path);
+        }
+        return inodeNumber;
+    }
+
+    private void map(long inodeNumber, RemotePath path) {
+        if (inodeToPath.putIfAbsent(inodeNumber, path) != null) {
+            throw new IllegalStateException();
+        }
+        Long otherInodeNumber = pathToInode.putIfAbsent(path, inodeNumber);
+        if (otherInodeNumber != null) {
+            //try rollback
+            if (inodeToPath.remove(inodeNumber) != path) {
+                throw new IllegalStateException("cant map, rollback failed");
+            }
+            throw new IllegalStateException("path ");
+        }
+    }
+
+    private void unmap(long inodeNumber, RemotePath path) {
+        RemotePath removedPath = inodeToPath.remove(inodeNumber);
+        if (!path.equals(removedPath)) {
+            throw new IllegalStateException();
+        }
+        if (pathToInode.remove(path) != inodeNumber) {
+            throw new IllegalStateException();
+        }
+    }
+
+    private void remap(long inodeNumber, RemotePath oldPath, RemotePath newPath) {
+        //TODO - attempt rollback?
+        unmap(inodeNumber, oldPath);
+        map(inodeNumber, newPath);
     }
 }
