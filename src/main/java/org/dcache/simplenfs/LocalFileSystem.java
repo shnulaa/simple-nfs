@@ -578,4 +578,14 @@ public class LocalFileSystem implements VirtualFileSystem {
     public NfsIdMapping getIdMapper() {
         return _idMapper;
     }
+
+    @Override
+    public boolean getCaseInsensitive() {
+        return false;
+    }
+
+    @Override
+    public boolean getCasePreserving() {
+        return false;
+    }
 }

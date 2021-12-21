@@ -21,7 +21,7 @@ public class App {
     @Option(name = "-port", usage = "TCP port to use", metaVar = "<port>")
     private int rpcPort = 2049;
     @Option(name = "-with-portmap", usage = "start embedded portmap")
-    private boolean withPortmap;
+    private boolean withPortmap = true;
 
     public static void main(String[] args) throws Exception {
         new App().run(args);

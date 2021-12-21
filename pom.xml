@@ -20,8 +20,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.0</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -65,7 +65,7 @@
         <dependency>
             <groupId>org.dcache</groupId>
             <artifactId>nfs4j-core</artifactId>
-            <version>0.19.1</version>
+            <version>0.21.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -103,7 +103,7 @@
     <repositories>
         <repository>
             <id>dcache releases</id>
-            <url>https://download.dcache.org/nexus/content/repositories/releases</url>
+            <url>https://download.dcache.org/nexus/repository/releases</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
@@ -113,7 +113,7 @@
         </repository>
         <repository>
             <id>dcache snapshots</id>
-            <url>https://download.dcache.org/nexus/content/repositories/snapshots</url>
+            <url>https://download.dcache.org/nexus/repository/snapshots</url>
             <releases>
                 <enabled>false</enabled>
             </releases>
