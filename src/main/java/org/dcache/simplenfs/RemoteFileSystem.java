@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class RemoteFileSystem implements VirtualFileSystem {
@@ -26,7 +27,7 @@ public class RemoteFileSystem implements VirtualFileSystem {
     private final RemotePath _root;
     private final NonBlockingHashMapLong<RemotePath> inodeToPath = new NonBlockingHashMapLong<>();
     private final NonBlockingHashMap<RemotePath, Long> pathToInode = new NonBlockingHashMap<>();
-
+    private final AtomicLong fileId = new AtomicLong(1); //numbering starts at 1
     private final AliDriverClient aliDriverClient;
 
 //    private
@@ -36,11 +37,14 @@ public class RemoteFileSystem implements VirtualFileSystem {
         aliDriverClient = AliDriverClient.getInstance();
         aliDriverClient.refreshToken();
         ///////////////////////////
+        map(fileId.getAndIncrement(), _root); //so root is always inode #1
 
+        List<RemotePath> paths = new ArrayList<>();
+        aliDriverClient.listAll(_root, paths);
+        paths.forEach(p -> {
+            map(fileId.getAndIncrement(), p);
+        });
 
-//        Map<String, Object> items = map.get("Item");
-
-//        map();
     }
 
 
@@ -57,7 +61,6 @@ public class RemoteFileSystem implements VirtualFileSystem {
     @Override
     public FsStat getFsStat() throws IOException {
         Map<String, Object> map = aliDriverClient.getDriverInfo();
-
         long total = (long) map.get("sbox_total_size");
         long used = (long) map.get("sbox_used_size");
         return new FsStat(total, Long.MAX_VALUE, used, 100L);
@@ -65,11 +68,26 @@ public class RemoteFileSystem implements VirtualFileSystem {
 
     @Override
     public Inode getRootInode() throws IOException {
-        return null;
+        return toFh(1); //always #1 (see constructor)
     }
 
     @Override
-    public Inode lookup(Inode inode, String s) throws IOException {
+    public Inode lookup(Inode parent, String path) throws IOException {
+        //TODO - several issues
+        //2. we might accidentally allow composite paths here ("/dome/dir/down")
+        //3. we dont actually check that the parent exists
+//        long parentInodeNumber = getInodeNumber(parent);
+//        RemotePath parentPath = resolveInode(parentInodeNumber);
+//        RemotePath child;
+//        if(path.equals(".")) {
+//            child = parentPath;
+//        } else if(path.equals("..")) {
+//            child = parentPath.getParent();
+//        } else {
+//            child = parentPath.resolve(path);
+//        }
+//        long childInodeNumber = resolvePath(child);
+//        return toFh(childInodeNumber);
         return null;
     }
 
@@ -234,4 +252,5 @@ public class RemoteFileSystem implements VirtualFileSystem {
         unmap(inodeNumber, oldPath);
         map(inodeNumber, newPath);
     }
+
 }
